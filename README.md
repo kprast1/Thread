@@ -52,7 +52,13 @@ THREAD is an agentic AI fashion discovery web application. Rather than clicking 
    npm install
    ```
 
-3. Configure environment variables:
+3. Start the Vector Database:
+   ```bash
+   npm run db:up
+   ```
+   *The PostgreSQL Docker container automatically initializes the schema, `pgvector` extension, 24 contemporary fashion brands, and 1,236 catalog garments with 768-dimensional embeddings from `db/init/01-init-database.sql`.*
+
+4. Configure environment variables:
    ```bash
    cp .env.example .env
    ```
@@ -61,12 +67,12 @@ THREAD is an agentic AI fashion discovery web application. Rather than clicking 
    GEMINI_API_KEY="your-gemini-api-key"
    ```
 
-4. Run the development server:
+5. Run the development server:
    ```bash
    npm run dev
    ```
 
-5. Open your browser at `http://localhost:3000`.
+6. Open your browser at `http://localhost:3000`.
 
 ---
 
@@ -76,6 +82,10 @@ THREAD is an agentic AI fashion discovery web application. Rather than clicking 
 - `npm run build` — Builds the client bundle into `dist/`.
 - `npm run start` — Starts the production full-stack server.
 - `npm run lint` — Validates TypeScript types across the codebase.
+- `npm run db:up` — Launches Dockerized PostgreSQL + pgvector (auto-populates catalog).
+- `npm run db:down` — Stops the PostgreSQL container.
+- `npm run db:restore` — Manually re-applies the full database backup from `db/init/01-init-database.sql`.
+- `npm run db:dump` — Exports the live database to `db/init/01-init-database.sql`.
 
 ---
 
