@@ -25,9 +25,10 @@ THREAD is an agentic AI fashion discovery web application. Rather than clicking 
 
 ## 🛠️ Tech Stack
 
+- **Vector Database**: PostgreSQL 16 with `pgvector` extension (HNSW cosine indexing for 768-dimensional normalized fashion embeddings)
+- **AI / LLM Orchestration**: Autonomous multi-turn Agentic RAG powered by `@google/genai` (`gemini-3.8-flash`) with dynamic tool execution
 - **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide Icons
 - **Backend**: Node.js, Express, TypeScript (`tsx`)
-- **AI / LLM Orchestration**: `@google/genai` TypeScript SDK (`gemini-3.8-flash`) with server-side proxy
 - **Typography**: Playfair Display (editorial serif) & Plus Jakarta Sans
 
 ---
@@ -36,15 +37,16 @@ THREAD is an agentic AI fashion discovery web application. Rather than clicking 
 
 ### Prerequisites
 
-- Node.js 20+ installed
-- A Gemini API key (optional, can be obtained from [Google AI Studio](https://aistudio.google.com/))
+- **Node.js**: v20+ recommended
+- **Docker & Docker Compose**: for running PostgreSQL + `pgvector`
+- **Gemini API Key**: from [Google AI Studio](https://aistudio.google.com/)
 
 ### Installation
 
-1. Clone or download the repository:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/thread-fashion-agent.git
-   cd thread-fashion-agent
+   git clone https://github.com/kprast1/Thread.git
+   cd Thread
    ```
 
 2. Install dependencies:
