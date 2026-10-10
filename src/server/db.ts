@@ -1,6 +1,7 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { Brand, Product, SearchIntent, UserPreferences } from '../types';
+import { formatVectorForPg } from './embeddings';
 
 dotenv.config();
 
@@ -130,8 +131,10 @@ export async function initDb(): Promise<boolean> {
       );
     `);
 
-    // 8. Performance indexes
+    // 8. Performance indexes & pgvector
     await client.query(`
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS embedding vector(768);
+      CREATE INDEX IF NOT EXISTS idx_products_embedding ON products USING hnsw (embedding vector_cosine_ops);
       CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
       CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
       CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
@@ -265,13 +268,20 @@ export async function getDbProducts(limit = 500): Promise<Product[]> {
   return res.rows;
 }
 
+export interface DbSemanticSearchOptions {
+  queryEmbedding?: number[];
+  rawQuery?: string;
+  limit?: number;
+}
+
 /**
- * Execute fast constraint-filtered search in PostgreSQL
+ * Execute fast constraint-filtered and pgvector-ranked search in PostgreSQL
  */
 export async function queryDbCandidates(
   intent: SearchIntent,
-  preferences?: UserPreferences
-): Promise<{ candidates: Product[]; totalEvaluated: number }> {
+  preferences?: UserPreferences,
+  semantic?: DbSemanticSearchOptions
+): Promise<{ candidates: (Product & { semanticScore?: number })[]; totalEvaluated: number }> {
   // Count total products in catalog for metrics
   const totalCountRes = await pool.query('SELECT COUNT(*)::int as count FROM products');
   const totalEvaluated = totalCountRes.rows[0]?.count || 0;
@@ -318,35 +328,61 @@ export async function queryDbCandidates(
     values.push(intent.targetColors.map(c => c.toLowerCase()));
   }
 
+  let selectColumns = `
+    id,
+    brand_name as "brand",
+    brand_id as "brandId",
+    name,
+    price::float as price,
+    original_price::float as "originalPrice",
+    currency,
+    category,
+    colors,
+    materials,
+    occasions as "occasion",
+    silhouettes,
+    image_url as "imageUrl",
+    fallback_image_url as "fallbackImageUrl",
+    product_url as "productUrl",
+    sizes,
+    in_stock as "inStock",
+    aesthetic,
+    description,
+    retailer_highlight as "retailerHighlight",
+    composition,
+    care
+  `;
+
+  let orderByClause = 'ORDER BY in_stock DESC, created_at DESC';
+  const queryLimit = semantic?.limit || 36;
+
+  // 7. pgvector Cosine Distance Ordering & Semantic Score
+  if (semantic?.queryEmbedding && semantic.queryEmbedding.length > 0) {
+    const vectorLiteral = formatVectorForPg(semantic.queryEmbedding);
+    const vectorParamIdx = paramIdx++;
+    values.push(vectorLiteral);
+
+    selectColumns += `,
+      ROUND((1 - (embedding <=> $${vectorParamIdx}::vector))::numeric, 4)::float as "semanticScore"
+    `;
+
+    // When searching without an explicit category constraint, require a minimum semantic floor
+    if (!intent.category) {
+      conditions.push(`(embedding IS NOT NULL AND (1 - (embedding <=> $${vectorParamIdx}::vector)) >= 0.35)`);
+    }
+
+    orderByClause = `ORDER BY CASE WHEN embedding IS NOT NULL THEN (embedding <=> $${vectorParamIdx}::vector) ELSE 1.0 END ASC`;
+  }
+
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `
     SELECT 
-      id,
-      brand_name as "brand",
-      brand_id as "brandId",
-      name,
-      price::float as price,
-      original_price::float as "originalPrice",
-      currency,
-      category,
-      colors,
-      materials,
-      occasions as "occasion",
-      silhouettes,
-      image_url as "imageUrl",
-      fallback_image_url as "fallbackImageUrl",
-      product_url as "productUrl",
-      sizes,
-      in_stock as "inStock",
-      aesthetic,
-      description,
-      retailer_highlight as "retailerHighlight",
-      composition,
-      care
+      ${selectColumns}
     FROM products
     ${whereClause}
-    LIMIT 200;
+    ${orderByClause}
+    LIMIT ${queryLimit};
   `;
 
   const res = await pool.query(sql, values);

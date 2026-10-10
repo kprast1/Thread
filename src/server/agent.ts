@@ -11,6 +11,7 @@ import {
   UserPreferences
 } from '../types';
 import { checkDbHealth, queryDbCandidates } from './db';
+import { getSemanticEmbedding } from './embeddings';
 
 // Server-side Gemini client with aistudio-build telemetry header
 const ai = new GoogleGenAI({
@@ -199,28 +200,42 @@ Return a JSON object with:
   }
 
   /**
-   * Step 3 & 4: Retrieve candidates & apply deterministic hard constraints
+   * Step 3 & 4: Retrieve candidates using pgvector HNSW cosine similarity & deterministic hard constraints
    */
-  async filterCandidates(intent: SearchIntent, preferences?: UserPreferences): Promise<{
+  async filterCandidates(
+    intent: SearchIntent,
+    preferences?: UserPreferences,
+    rawQuery?: string
+  ): Promise<{
     validCandidates: Product[];
     totalEvaluated: number;
     trace: AgentTraceStep;
   }> {
-    // Attempt fast query through PostgreSQL first
+    // Attempt fast query through PostgreSQL with pgvector cosine ranking
     try {
       const dbHealth = await checkDbHealth();
       if (dbHealth.connected && dbHealth.productCount > 0) {
-        const { candidates, totalEvaluated } = await queryDbCandidates(intent, preferences);
+        let queryEmbedding: number[] | undefined;
+        if (rawQuery && rawQuery.trim().length > 0) {
+          queryEmbedding = await getSemanticEmbedding(rawQuery);
+        }
+
+        const { candidates, totalEvaluated } = await queryDbCandidates(intent, preferences, {
+          queryEmbedding,
+          rawQuery,
+          limit: 36,
+        });
+
         const trace: AgentTraceStep = {
           id: 'step-3',
           phase: 'hard_filtering',
-          title: 'Deterministic Constraint Filtering (PostgreSQL)',
-          detail: `Evaluated ${totalEvaluated} garments in PostgreSQL database. ${candidates.length} strictly satisfied hard constraints (category: ${intent.category || 'any'}, maxPrice: ${intent.maxPrice ? `$${intent.maxPrice}` : 'none'}, excluded materials: ${preferences?.excludedMaterials?.length || 0}).`,
+          title: 'Semantic Vector & Constraint Retrieval (pgvector HNSW)',
+          detail: `Evaluated ${totalEvaluated} garments in PostgreSQL. Retrieved ${candidates.length} top candidates via 768-dim HNSW cosine similarity and constraint filters (category: ${intent.category || 'any'}, maxPrice: ${intent.maxPrice ? `$${intent.maxPrice}` : 'none'}, excluded materials: ${preferences?.excludedMaterials?.length || 0}).`,
           metrics: {
             totalEvaluated,
             passedHardConstraints: candidates.length,
             filteredOut: totalEvaluated - candidates.length,
-            engine: 'PostgreSQL GIN Index'
+            engine: 'PostgreSQL pgvector HNSW & GIN Indexes',
           },
           timestamp: Date.now(),
         };
@@ -302,24 +317,20 @@ Return a JSON object with:
     const scored = candidates.map(product => {
       const isFavorite = favoriteBrandIds.includes(product.brandId);
 
-      // 1. Query match (0 to 1)
-      let queryMatch = 0.5; // baseline
+      // 1. Query match (0 to 1) - powered by pgvector semantic score
+      const semanticScore = (product as any).semanticScore;
+      let queryMatch = typeof semanticScore === 'number' ? semanticScore : 0.5;
       if (intent.targetSilhouettes.length > 0) {
         const silMatches = intent.targetSilhouettes.filter(s =>
           product.silhouettes.some(ps => ps.toLowerCase().includes(s.toLowerCase()))
         ).length;
-        queryMatch += (silMatches / intent.targetSilhouettes.length) * 0.3;
-      } else {
-        queryMatch += 0.2;
+        queryMatch += (silMatches / intent.targetSilhouettes.length) * 0.15;
       }
-
       if (intent.targetOccasions.length > 0) {
         const occMatches = intent.targetOccasions.filter(o =>
           product.occasion.some(po => po.toLowerCase().includes(o.toLowerCase()))
         ).length;
-        queryMatch += (occMatches / intent.targetOccasions.length) * 0.2;
-      } else {
-        queryMatch += 0.1;
+        queryMatch += (occMatches / intent.targetOccasions.length) * 0.15;
       }
       queryMatch = Math.min(1, queryMatch);
 
@@ -402,19 +413,29 @@ Return a JSON object with:
     // Sort descending by matchScore
     scored.sort((a, b) => b.matchScore - a.matchScore);
 
+    // Filter out low-matching outliers:
+    // Only return high-confidence curated matches (top 18-24 products)
+    let curatedResults = scored.filter(p => p.matchScore >= 45);
+    if (curatedResults.length < 6) {
+      curatedResults = scored.slice(0, Math.min(12, scored.length));
+    } else if (curatedResults.length > 24) {
+      curatedResults = curatedResults.slice(0, 24);
+    }
+
     const trace: AgentTraceStep = {
       id: 'step-4',
       phase: 'aesthetic_scoring',
       title: 'Aesthetic & Affinity Scoring',
-      detail: `Scored candidates using weighted formula (0.45 query match + 0.25 style + 0.20 brand affinity + 0.10 discovery quality). Top score: ${scored[0]?.matchScore ?? 0}%.`,
+      detail: `Scored candidates using weighted formula (0.45 query match + 0.25 style + 0.20 brand affinity + 0.10 discovery quality). Selected top ${curatedResults.length} curated garments. Top score: ${curatedResults[0]?.matchScore ?? 0}%.`,
       metrics: {
-        topCandidateScore: scored[0]?.matchScore ?? 0,
+        topCandidateScore: curatedResults[0]?.matchScore ?? 0,
         candidatesRanked: scored.length,
+        curatedCandidates: curatedResults.length,
       },
       timestamp: Date.now(),
     };
 
-    return { ranked: scored, trace };
+    return { ranked: curatedResults, trace };
   }
 
   /**
@@ -543,8 +564,8 @@ Return JSON:
     const { favoriteBrandIds, discoveredBrandIds, trace: trace2 } = this.planBrandExpansion(intent, preferences);
     traceSteps.push(trace2);
 
-    // Step 3 & 4: Hard constraint filtering
-    const { validCandidates, totalEvaluated, trace: trace3 } = await this.filterCandidates(intent, preferences);
+    // Step 3 & 4: Hard constraint filtering & pgvector semantic retrieval
+    const { validCandidates, totalEvaluated, trace: trace3 } = await this.filterCandidates(intent, preferences, query);
     traceSteps.push(trace3);
 
     // Step 5: Ranking & aesthetic affinity scoring
