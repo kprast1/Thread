@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ArrowRight, Sparkles, Filter, X } from 'lucide-react';
+import { Search, ArrowRight, Sparkles, X, SlidersHorizontal } from 'lucide-react';
 import { UserPreferences, SearchIntent } from '../types';
 import { BRANDS } from '../data/brands';
 
@@ -9,6 +9,7 @@ interface SearchHeaderProps {
   preferences: UserPreferences;
   currentIntent?: SearchIntent | null;
   onOpenPreferences: () => void;
+  onOpenStylist?: () => void;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -17,15 +18,17 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   preferences,
   currentIntent,
   onOpenPreferences,
+  onOpenStylist,
 }) => {
   const [query, setQuery] = useState('');
 
-  const samplePrompts = [
-    "Black midi dress for a wedding. Elegant, minimalist, asymmetric, under $350",
-    "Structured brown leather bag that feels expensive under $400",
-    "Comfortable work trousers that don't look too corporate",
-    "Summer dress, Mediterranean, simple but interesting",
-    "Something similar to Toteme coat, but more affordable",
+  const quickPills = [
+    { label: 'Quiet Luxury', query: 'Quiet luxury minimalist pieces in natural fibers' },
+    { label: 'Wedding Guest < $350', query: 'Black or dark midi dress for wedding under $350, elegant and minimalist' },
+    { label: 'Wide-Leg Linen', query: 'Relaxed wide-leg linen trousers for warm weather' },
+    { label: 'Toteme Aesthetic', query: 'Sculptural outerwear and tailoring similar to Toteme' },
+    { label: '100% Cashmere & Silk', query: 'Pure cashmere knitwear and silk pieces under $350' },
+    { label: 'Structured Leather Bag', query: 'Structured leather tote or shoulder bag under $400' },
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -35,9 +38,9 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
     }
   };
 
-  const handleSelectSample = (sample: string) => {
-    setQuery(sample);
-    onSearch(sample);
+  const handleSelectPill = (pillQuery: string) => {
+    setQuery(pillQuery);
+    onSearch(pillQuery);
   };
 
   const favoriteNames = preferences.favoriteBrandIds
@@ -45,53 +48,61 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
     .filter(Boolean);
 
   return (
-    <div className="pt-8 pb-10 border-b border-black/[0.06] bg-gradient-to-b from-white to-[#FBFBFA]">
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Subtle kicker */}
-        <div className="flex items-center justify-between mb-3 text-xs text-neutral-500">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-neutral-800 tracking-wider uppercase text-[11px]">
-              Agentic Fashion Discovery
+    <div className="bg-white border-b border-neutral-200/80 pt-6 pb-6">
+      <div className="max-w-7xl mx-auto px-6">
+        {/* Top Control Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 text-xs">
+          <div className="flex items-center gap-2 text-neutral-600">
+            <span className="font-semibold text-neutral-900 uppercase tracking-wider text-[11px]">
+              Curated Style Search
             </span>
             <span aria-hidden="true">·</span>
-            <span>Natural language search across curated fashion houses</span>
+            <span>Discover by silhouette, occasion, fabric, or aesthetic</span>
           </div>
 
-          <button
-            onClick={onOpenPreferences}
-            className="hover:text-neutral-900 transition-colors text-xs flex items-center gap-1 font-medium"
-          >
-            <span>Priority Brands: {favoriteNames.slice(0, 3).join(', ')}{favoriteNames.length > 3 ? ` +${favoriteNames.length - 3}` : ''}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onOpenPreferences}
+              className="text-xs text-neutral-600 hover:text-neutral-900 transition-colors flex items-center gap-1.5 font-medium"
+            >
+              <SlidersHorizontal className="w-3 h-3 text-neutral-500" />
+              <span>Prioritizing: {favoriteNames.slice(0, 3).join(', ')}{favoriteNames.length > 3 ? ` +${favoriteNames.length - 3}` : ''}</span>
+            </button>
+
+            {onOpenStylist && (
+              <button
+                onClick={onOpenStylist}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-neutral-900 bg-neutral-100 hover:bg-neutral-200 transition-colors rounded-sm"
+              >
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                <span>Personal Stylist</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Headline */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-editorial tracking-tight text-neutral-900 mb-6 font-medium leading-[1.15]">
-          Find what you actually mean, from brands you’ll actually like.
-        </h1>
-
-        {/* Search Input Box */}
-        <form onSubmit={handleSubmit} className="relative mb-4">
-          <div className="relative flex items-center bg-white border-2 border-neutral-900 shadow-sm transition-all focus-within:shadow-md">
+        {/* Modern E-Commerce Search Input Box */}
+        <form onSubmit={handleSubmit} className="relative mb-3">
+          <div className="relative flex items-center bg-white border border-neutral-300 focus-within:border-neutral-900 focus-within:ring-1 focus-within:ring-neutral-900 transition-all rounded-xs shadow-2xs">
             <div className="pl-4 pr-2 text-neutral-400">
-              <Search className="w-5 h-5 text-neutral-900" />
+              <Search className="w-4 h-4 text-neutral-700" />
             </div>
 
             <input
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Describe what you want (e.g. 'black midi dress for a wedding, minimalist, asymmetric, under $350')..."
-              className="w-full py-4 pr-32 text-sm sm:text-base text-neutral-900 bg-transparent placeholder:text-neutral-400 focus:outline-hidden"
+              placeholder="Search by aesthetic, silhouette, occasion, or price (e.g. 'black midi dress for a wedding under $350')..."
+              className="w-full py-3.5 pr-28 text-sm text-neutral-900 bg-transparent placeholder:text-neutral-400 focus:outline-hidden"
               disabled={isLoading}
             />
 
-            <div className="absolute right-2 flex items-center gap-2">
+            <div className="absolute right-2 flex items-center gap-1.5">
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="p-1 text-neutral-400 hover:text-neutral-800"
+                  className="p-1 text-neutral-400 hover:text-neutral-800 transition-colors"
                   aria-label="Clear query"
                 >
                   <X className="w-4 h-4" />
@@ -100,17 +111,17 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
               <button
                 type="submit"
                 disabled={!query.trim() || isLoading}
-                className="px-5 py-2.5 text-xs font-semibold tracking-wider uppercase text-white bg-neutral-900 hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-xs font-semibold tracking-wider uppercase text-white bg-neutral-900 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 rounded-xs"
               >
                 {isLoading ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>Searching</span>
                   </>
                 ) : (
                   <>
                     <span>Search</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3 h-3" />
                   </>
                 )}
               </button>
@@ -118,54 +129,54 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
           </div>
         </form>
 
-        {/* Curated Sample Inspiration Prompts (Interactive buttons) */}
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-          <span className="text-neutral-400 font-medium whitespace-nowrap">Try:</span>
-          {samplePrompts.map((prompt, idx) => (
+        {/* Quick Discovery Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+          <span className="text-neutral-400 font-medium whitespace-nowrap text-[11px] uppercase tracking-wider">
+            Quick Discovery:
+          </span>
+          {quickPills.map((pill, idx) => (
             <button
               key={idx}
               type="button"
-              onClick={() => handleSelectSample(prompt)}
+              onClick={() => handleSelectPill(pill.query)}
               disabled={isLoading}
-              className="px-2.5 py-1 text-xs text-neutral-600 bg-white border border-neutral-200 hover:border-neutral-900 hover:text-neutral-900 transition-colors truncate max-w-xs sm:max-w-md text-left"
+              className="px-2.5 py-1 text-xs text-neutral-700 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 hover:border-neutral-400 transition-colors whitespace-nowrap rounded-xs"
             >
-              "{prompt}"
+              {pill.label}
             </button>
           ))}
         </div>
 
         {/* Active Constraints Readout if intent exists */}
         {currentIntent && (
-          <div className="mt-4 pt-4 border-t border-neutral-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500">
-            <span className="font-medium text-neutral-800 uppercase tracking-wider text-[11px]">
+          <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold text-neutral-700 uppercase tracking-wider text-[10px]">
               Active Constraints:
             </span>
             {currentIntent.category && (
-              <span>Category: <strong className="text-neutral-800 font-semibold">{currentIntent.category}</strong></span>
+              <span className="bg-neutral-100 px-2 py-0.5 rounded-xs text-neutral-800 font-medium">
+                Category: <strong>{currentIntent.category}</strong>
+              </span>
             )}
             {currentIntent.maxPrice && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>Max Budget: <strong className="text-neutral-800 font-semibold font-mono tabular-nums">${currentIntent.maxPrice}</strong></span>
-              </>
+              <span className="bg-neutral-100 px-2 py-0.5 rounded-xs text-neutral-800 font-medium font-mono tabular-nums">
+                Budget: <strong>&lt; ${currentIntent.maxPrice}</strong>
+              </span>
             )}
             {currentIntent.targetColors.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>Color: <strong className="text-neutral-800 font-semibold">{currentIntent.targetColors.join(', ')}</strong></span>
-              </>
+              <span className="bg-neutral-100 px-2 py-0.5 rounded-xs text-neutral-800 font-medium">
+                Color: <strong>{currentIntent.targetColors.join(', ')}</strong>
+              </span>
             )}
             {currentIntent.targetSilhouettes.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>Silhouettes: <strong className="text-neutral-800 font-semibold">{currentIntent.targetSilhouettes.join(', ')}</strong></span>
-              </>
+              <span className="bg-neutral-100 px-2 py-0.5 rounded-xs text-neutral-800 font-medium">
+                Cut: <strong>{currentIntent.targetSilhouettes.join(', ')}</strong>
+              </span>
             )}
             {preferences.excludedMaterials.length > 0 && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="text-red-700">Excluded: {preferences.excludedMaterials.join(', ')}</span>
-              </>
+              <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-xs">
+                Zero: {preferences.excludedMaterials.join(', ')}
+              </span>
             )}
           </div>
         )}

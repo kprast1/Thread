@@ -9,12 +9,18 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #FBFBFA;
-    color: #191919;
+    background-color: #FFFFFF;
+    color: #0F172A;
   }
 
-  h1, h2, h3, .font-editorial {
-    font-family: var(--font-serif);
+  h1, h2, h3 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.025em;
+  }
+
+  .font-editorial {
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
   }
 }
 

@@ -21,11 +21,11 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
         <div className="w-12 h-12 bg-neutral-100 text-neutral-400 mx-auto flex items-center justify-center mb-4">
           <Bookmark className="w-6 h-6" />
         </div>
-        <h2 className="text-2xl font-editorial font-medium text-neutral-900 mb-2">
+        <h2 className="text-xl font-bold tracking-tight text-neutral-900 mb-2">
           Your Saved Pieces Collection is Empty
         </h2>
         <p className="text-sm text-neutral-600 max-w-md mx-auto mb-6 leading-relaxed">
-          As you search with the agent, bookmark items you love to build your personal wishlist and teach the agent your style.
+          Bookmark pieces you love to build your personal collection and refine future recommendations.
         </p>
         <button
           onClick={onNavigateToSearch}

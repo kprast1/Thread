@@ -113,3 +113,13 @@ export interface SearchResponse {
     passedHardConstraints: number;
   };
 }
+
+export interface StylistMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  recommendedProductIds?: string[];
+  stylingTips?: string[];
+  suggestedPrompts?: string[];
+}
