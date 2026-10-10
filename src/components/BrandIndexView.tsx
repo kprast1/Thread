@@ -36,8 +36,8 @@ export const BrandIndexView: React.FC<BrandIndexViewProps> = ({
         <div className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold mb-2">
           Curated Catalog & Brand Network
         </div>
-        <h1 className="text-3xl sm:text-4xl font-editorial font-medium text-neutral-900 leading-tight mb-3">
-          The Fashion House Affinity Network
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 leading-tight mb-2">
+          Fashion House Affinity Network
         </h1>
         <p className="text-sm text-neutral-600 leading-relaxed">
           THREAD doesn't just match keywords—it clusters fashion houses by aesthetic silhouette, fabric weight, and design philosophy. Explore the supported brands and their similarity mappings.
@@ -189,7 +189,7 @@ export const BrandIndexView: React.FC<BrandIndexViewProps> = ({
             {/* Similar Brands & Why */}
             <div className="pt-4 border-t border-neutral-200">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-900 block mb-3">
-                Aesthetic Peers in Agent Graph ({selectedBrand.similarBrandIds.length})
+                Aesthetic Peers & Similar Houses ({selectedBrand.similarBrandIds.length})
               </span>
 
               <div className="space-y-3">

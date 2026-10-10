@@ -117,6 +117,22 @@ async function startServer() {
     res.json({ success: true, productId, type, timestamp: Date.now() });
   });
 
+  // AI Stylist Consultation endpoint
+  app.post('/api/stylist/chat', async (req, res) => {
+    try {
+      const { message, history = [], userPreferences } = req.body;
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const response = await agent.consultStylist(message, history, userPreferences);
+      res.json(response);
+    } catch (err: any) {
+      console.error('Stylist consultation error:', err);
+      res.status(500).json({ error: err.message || 'Stylist consultation failed' });
+    }
+  });
+
   // Serve Vite in dev or static files in prod
   if (!isProd) {
     const vite = await createViteServer({

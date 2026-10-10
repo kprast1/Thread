@@ -120,10 +120,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </div>
               </div>
 
-              {/* Grounded AI Matching Reason */}
+              {/* Grounded Matching Reason */}
               <div className="p-4 bg-neutral-50 border border-neutral-300">
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-neutral-900 block mb-1">
-                  Agent Matching Rationale
+                  Stylist Matching Note
                 </span>
                 <p className="text-xs text-neutral-700 leading-relaxed">
                   {product.reason}
@@ -174,10 +174,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </div>
               )}
 
-              {/* Feedback controls (PRD 5.6) */}
+              {/* Feedback controls */}
               <div className="pt-2 border-t border-neutral-200">
                 <div className="text-xs text-neutral-500 mb-2">
-                  Train the agent on this piece:
+                  Refine your style preferences:
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {feedbackOptions.map(opt => {

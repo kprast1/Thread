@@ -123,7 +123,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         {step === 1 && (
           <div className="space-y-6">
             <p className="text-sm text-neutral-600 leading-relaxed">
-              Select brands that define your aesthetic. The agent searches these first and uses them to discover emerging labels with matching design principles.
+              Select brands that define your aesthetic. We prioritize these houses in your search results and use them to discover emerging labels with matching design principles.
             </p>
 
             <div className="relative">
@@ -279,7 +279,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 Fabrics or Materials to Exclude
               </label>
               <p className="text-xs text-neutral-500 mb-2">
-                Items composed of these materials will be excluded by the agent's hard constraint filter.
+                Items composed of these materials will be strictly filtered out of your results.
               </p>
               <div className="flex flex-wrap gap-2">
                 {commonMaterialsToAvoid.map(mat => {

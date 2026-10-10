@@ -45,8 +45,8 @@ export class FashionSearchAgent {
 
     const q = query.toLowerCase();
 
-    // Detect price constraint from text: e.g. "under $350", "below 400", "less than $300", "<$250"
-    const priceMatch = q.match(/(?:under|below|less than|max|budget of|\<)\s*\$?(\d+)/i);
+    // 1. Price constraint extraction: e.g. "under $350", "below 400", "less than $300", "<$250", "sub-$200"
+    const priceMatch = q.match(/(?:under|below|less than|max|budget of|\<|sub-)\s*\$?(\d+)/i);
     if (priceMatch) {
       defaultIntent.maxPrice = parseInt(priceMatch[1], 10);
     }
@@ -54,38 +54,74 @@ export class FashionSearchAgent {
     if (minPriceMatch) {
       defaultIntent.minPrice = parseInt(minPriceMatch[1], 10);
     }
-
-    // Detect category
-    if (q.includes('dress') || q.includes('slip') || q.includes('gown')) defaultIntent.category = 'dress';
-    else if (q.includes('skirt')) defaultIntent.category = 'skirt';
-    else if (q.includes('trouser') || q.includes('pant') || q.includes('slacks')) defaultIntent.category = 'trousers';
-    else if (q.includes('bag') || q.includes('tote') || q.includes('purse') || q.includes('crossbody')) defaultIntent.category = 'bag';
-    else if (q.includes('coat') || q.includes('jacket') || q.includes('trench') || q.includes('outerwear')) defaultIntent.category = 'coat';
-    else if (q.includes('boot') || q.includes('shoe') || q.includes('heel') || q.includes('loafer')) defaultIntent.category = 'shoes';
-    else if (q.includes('sweater') || q.includes('cardigan') || q.includes('knit')) defaultIntent.category = 'knitwear';
-    else if (q.includes('shirt') || q.includes('blouse') || q.includes('top')) defaultIntent.category = 'top';
-
-    // Detect colors
-    const knownColors = ['black', 'brown', 'espresso', 'camel', 'chocolate', 'ecru', 'cream', 'white', 'grey', 'charcoal', 'navy', 'rust', 'saddle', 'taupe'];
-    for (const color of knownColors) {
-      if (q.includes(color)) defaultIntent.targetColors.push(color);
+    if (q.includes('affordable') || q.includes('budget') || q.includes('cheap') || q.includes('dupe')) {
+      if (!defaultIntent.maxPrice) defaultIntent.maxPrice = 280;
     }
 
-    // Detect occasions
-    const knownOccasions = ['wedding', 'work', 'office', 'cocktail', 'dinner', 'evening', 'resort', 'vacation', 'summer', 'everyday', 'gala'];
-    for (const occ of knownOccasions) {
+    // 2. Comprehensive Category Extraction
+    if (/(?:dress|slip|gown|sundress|halter dress|maxi dress|midi dress|shift dress)/i.test(q)) {
+      defaultIntent.category = 'dress';
+    } else if (/(?:trouser|trousers|pant|pants|slacks|chinos|wide-leg|puddle pant)/i.test(q)) {
+      defaultIntent.category = 'trousers';
+    } else if (/(?:bag|tote|purse|crossbody|shoulder bag|handbag|clutch|satchel)/i.test(q)) {
+      defaultIntent.category = 'bag';
+    } else if (/(?:coat|jacket|trench|outerwear|blazer|overcoat|wool coat|parka)/i.test(q)) {
+      defaultIntent.category = 'coat';
+    } else if (/(?:shoe|shoes|loafer|loafers|boot|boots|heel|heels|mule|mules|kitten-heel|flat|flats|sandal|sandals)/i.test(q)) {
+      defaultIntent.category = 'shoes';
+    } else if (/(?:sweater|cardigan|knit|knitwear|jumper|pullover|turtleneck|crewneck|mockneck)/i.test(q)) {
+      defaultIntent.category = 'knitwear';
+    } else if (/(?:skirt|skirts|maxi skirt|midi skirt|slip skirt|wrap skirt)/i.test(q)) {
+      defaultIntent.category = 'skirt';
+    } else if (/(?:top|tops|shirt|shirts|blouse|blouses|tee|t-shirt|tank|button-down)/i.test(q)) {
+      defaultIntent.category = 'top';
+    }
+
+    // 3. Color Synonyms & Detection
+    const colorMap: Record<string, string[]> = {
+      black: ['black', 'noir', 'onyx'],
+      white: ['white', 'ecru', 'cream', 'ivory', 'oatmeal', 'bone'],
+      brown: ['brown', 'espresso', 'chocolate', 'mocha', 'coffee', 'chestnut'],
+      camel: ['camel', 'tan', 'beige', 'sand', 'taupe', 'cognac', 'saddle'],
+      grey: ['grey', 'gray', 'charcoal', 'slate', 'melange'],
+      navy: ['navy', 'midnight', 'dark blue'],
+      olive: ['olive', 'sage', 'khaki', 'forest green', 'green'],
+      burgundy: ['burgundy', 'wine', 'bordeaux', 'rust', 'terracotta', 'red'],
+    };
+
+    for (const [canonical, variants] of Object.entries(colorMap)) {
+      if (variants.some(v => q.includes(v))) {
+        defaultIntent.targetColors.push(canonical);
+        // Also keep variant for exact matching
+        variants.forEach(v => {
+          if (q.includes(v) && !defaultIntent.targetColors.includes(v)) {
+            defaultIntent.targetColors.push(v);
+          }
+        });
+      }
+    }
+
+    // 4. Occasions Detection
+    const occasionKeywords = ['wedding', 'work', 'office', 'cocktail', 'dinner', 'evening', 'resort', 'vacation', 'summer', 'everyday', 'gala', 'date night', 'party', 'casual'];
+    for (const occ of occasionKeywords) {
       if (q.includes(occ)) defaultIntent.targetOccasions.push(occ);
     }
 
-    // Detect silhouettes
-    const knownSilhouettes = ['asymmetric', 'minimalist', 'wide-leg', 'pleated', 'sculptural', 'oversized', 'tailored', 'relaxed', 'slip', 'wrap', 'low-heel', 'kitten-heel'];
-    for (const sil of knownSilhouettes) {
+    // 5. Silhouettes & Details
+    const silhouetteKeywords = ['asymmetric', 'minimalist', 'wide-leg', 'pleated', 'sculptural', 'oversized', 'tailored', 'relaxed', 'slip', 'wrap', 'low-heel', 'kitten-heel', 'square-toe', 'bias-cut', 'halter', 'high-waisted', 'mock-neck', 'slouchy'];
+    for (const sil of silhouetteKeywords) {
       if (q.includes(sil)) defaultIntent.targetSilhouettes.push(sil);
     }
 
-    // Detect aesthetics
-    const knownAesthetics = ['minimalist', 'architectural', 'understated', 'luxury', 'parisian', 'chic', 'scandinavian', 'romantic', 'clean', 'quiet luxury', 'mediterranean'];
-    for (const aes of knownAesthetics) {
+    // 6. Materials & Fabrics
+    const materialKeywords = ['silk', 'linen', 'wool', 'cashmere', 'leather', 'cotton', 'mohair', 'alpaca', 'poplin', 'viscose', 'lyocell'];
+    for (const mat of materialKeywords) {
+      if (q.includes(mat)) defaultIntent.targetMaterials.push(mat);
+    }
+
+    // 7. Aesthetics & Design Vibe
+    const aestheticKeywords = ['quiet luxury', 'minimalist', 'architectural', 'understated', 'luxury', 'parisian', 'chic', 'scandinavian', 'romantic', 'clean', 'mediterranean', 'old money', 'modern tailoring'];
+    for (const aes of aestheticKeywords) {
       if (q.includes(aes)) defaultIntent.targetAesthetic.push(aes);
     }
 
@@ -99,7 +135,7 @@ User budget preference: ${preferences?.priceBudget?.max ? `$${preferences.priceB
 
 Return a JSON object with:
 {
-  "category": "dress" | "trousers" | "bag" | "coat" | "shoes" | "knitwear" | "top" | null,
+  "category": "dress" | "trousers" | "bag" | "coat" | "shoes" | "knitwear" | "top" | "skirt" | null,
   "targetColors": string[],
   "targetOccasions": string[],
   "targetSilhouettes": string[],
@@ -130,6 +166,9 @@ Return a JSON object with:
           if (Array.isArray(parsed.targetOccasions) && parsed.targetOccasions.length > 0) {
             defaultIntent.targetOccasions = Array.from(new Set([...defaultIntent.targetOccasions, ...parsed.targetOccasions]));
           }
+          if (Array.isArray(parsed.targetMaterials) && parsed.targetMaterials.length > 0) {
+            defaultIntent.targetMaterials = Array.from(new Set([...defaultIntent.targetMaterials, ...parsed.targetMaterials]));
+          }
           if (parsed.maxPrice) defaultIntent.maxPrice = parsed.maxPrice;
           if (parsed.aestheticSummary) defaultIntent.summary = parsed.aestheticSummary;
         }
@@ -142,12 +181,12 @@ Return a JSON object with:
       id: 'step-1',
       phase: 'understanding',
       title: 'Decoded Natural-Language Intent',
-      detail: `Parsed category: ${defaultIntent.category || 'open discovery'}, budget ceiling: ${defaultIntent.maxPrice ? `$${defaultIntent.maxPrice}` : 'unconstrained'}, key aesthetics: [${defaultIntent.targetAesthetic.concat(defaultIntent.targetSilhouettes).join(', ') || 'editorial'}]`,
+      detail: `Parsed intent: ${defaultIntent.category ? `Category [${defaultIntent.category}]` : 'Open catalog discovery'}, Budget ceiling: ${defaultIntent.maxPrice ? `$${defaultIntent.maxPrice}` : 'Unconstrained'}, Aesthetics & Silhouettes: [${defaultIntent.targetAesthetic.concat(defaultIntent.targetSilhouettes).slice(0, 4).join(', ') || 'Tailored & Contemporary'}].`,
       metrics: {
         category: defaultIntent.category || 'all',
-        maxPrice: defaultIntent.maxPrice ?? 'none',
+        maxPrice: defaultIntent.maxPrice ? `$${defaultIntent.maxPrice}` : 'unconstrained',
         silhouettesCount: defaultIntent.targetSilhouettes.length,
-        colorsDetected: defaultIntent.targetColors.join(', ') || 'none'
+        colorsDetected: defaultIntent.targetColors.join(', ') || 'any'
       },
       timestamp: Date.now(),
     };
@@ -252,7 +291,7 @@ Return a JSON object with:
     const excludedMaterials = new Set((preferences?.excludedMaterials || []).map(m => m.toLowerCase()));
     const excludedBrands = new Set((preferences?.excludedBrands || []).map(b => b.toLowerCase()));
 
-    const validCandidates = PRODUCTS.filter(product => {
+    let validCandidates = PRODUCTS.filter(product => {
       // Hard constraint 1: Excluded brands
       if (excludedBrands.has(product.brandId.toLowerCase())) return false;
 
@@ -275,18 +314,37 @@ Return a JSON object with:
         const matchesColor = intent.targetColors.some(tc =>
           product.colors.some(pc => pc.toLowerCase().includes(tc.toLowerCase()) || tc.toLowerCase().includes(pc.toLowerCase()))
         );
-        // If query explicitly asked for e.g. "black", filter out non-black items
         if (!matchesColor) return false;
       }
 
       return true;
     });
 
+    let adaptiveNote = '';
+    // Adaptive Constraint Relaxation: If strict combination pruned all items,
+    // maintain hard budget/materials safety but relax color tone to show silhouette matches
+    if (validCandidates.length === 0 && intent.targetColors.length > 0) {
+      const relaxedColorCandidates = PRODUCTS.filter(product => {
+        if (excludedBrands.has(product.brandId.toLowerCase())) return false;
+        if (intent.category && product.category !== intent.category) return false;
+        if (intent.maxPrice !== null && product.price > intent.maxPrice) return false;
+        if (intent.minPrice !== null && product.price < intent.minPrice) return false;
+        for (const mat of product.materials) {
+          if (excludedMaterials.has(mat.toLowerCase())) return false;
+        }
+        return true;
+      });
+      if (relaxedColorCandidates.length > 0) {
+        validCandidates = relaxedColorCandidates;
+        adaptiveNote = ` (Adaptively relaxed color filter to surface ${validCandidates.length} style-compatible pieces within budget)`;
+      }
+    }
+
     const trace: AgentTraceStep = {
       id: 'step-3',
       phase: 'hard_filtering',
-      title: 'Deterministic Constraint Filtering (In-Memory)',
-      detail: `Evaluated ${totalEvaluated} catalog items. ${validCandidates.length} strictly satisfied hard constraints (category: ${intent.category || 'any'}, maxPrice: ${intent.maxPrice ? `$${intent.maxPrice}` : 'none'}, excluded materials: ${excludedMaterials.size}).`,
+      title: 'Deterministic Constraint Filtering',
+      detail: `Evaluated ${totalEvaluated} catalog items. ${validCandidates.length} passed hard constraints (category: ${intent.category || 'all'}, budget: ${intent.maxPrice ? `$${intent.maxPrice}` : 'unconstrained'}, excluded fabrics: ${excludedMaterials.size})${adaptiveNote}.`,
       metrics: {
         totalEvaluated,
         passedHardConstraints: validCandidates.length,
@@ -449,13 +507,15 @@ Return a JSON object with:
     favoriteBrandIds: string[]
   ): Promise<SearchResultProduct[]> {
     if (!process.env.GEMINI_API_KEY || products.length === 0) {
-      // Deterministic fallback grounded explanations
+      // Dynamic attribute-grounded explanations reflecting real materials & cuts
       return products.map(p => {
+        const silText = p.silhouettes.slice(0, 2).join(' & ') || 'tailored';
+        const matText = p.composition || p.materials.join(', ') || 'fine textile';
         let reason = p.reason;
         if (p.discoveryType === 'favorite_brand') {
-          reason = `From your favorite brand ${p.brand}: satisfies your ${p.silhouettes[0] || 'tailored'} silhouette constraint and fits your price requirement at $${p.price}.`;
+          reason = `From your favorite house ${p.brand}: Crafted in ${matText} with ${silText} proportions, meeting your ${p.occasion[0] || 'wardrobe'} requirement under budget at $${p.price}.`;
         } else {
-          reason = `Discovered brand match: ${p.brand} delivers the requested ${p.silhouettes.join(' & ')} aesthetic with premium craftsmanship under your limit.`;
+          reason = `Discovered peer brand ${p.brand}: Delivers ${p.aesthetic} design language in ${matText} with a ${silText} drape at $${p.price}.`;
         }
         return { ...p, reason };
       });
@@ -646,5 +706,113 @@ Return JSON:
   ): Promise<SearchResponse> {
     const combinedQuery = `${originalQuery}. Refinement: ${refinement}`;
     return this.executeSearch(combinedQuery, preferences);
+  }
+
+  /**
+   * Conversational Fashion Stylist Consultation
+   */
+  async consultStylist(
+    message: string,
+    history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    preferences?: UserPreferences
+  ): Promise<{
+    reply: string;
+    recommendedProductIds: string[];
+    stylingTips: string[];
+    suggestedPrompts: string[];
+  }> {
+    const q = message.toLowerCase();
+
+    // Select candidate pieces based on user intent
+    const { intent } = await this.parseIntent(message, preferences);
+    const { validCandidates } = await this.filterCandidates(intent, preferences, message);
+    const candidatePool: Product[] = validCandidates.length > 0 ? validCandidates : PRODUCTS;
+    const recommended: Product[] = candidatePool.slice(0, 3);
+    const recommendedProductIds = recommended.map((p: Product) => p.id);
+
+    // Call Gemini 3.8 Flash if key available
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const prompt = `You are the THREAD AI Fashion Stylist, an expert luxury wardrobe advisor.
+User Profile:
+- Favorite Brands: ${preferences?.favoriteBrandIds?.join(', ') || 'COS, Toteme, Reformation'}
+- Excluded Fabrics: ${preferences?.excludedMaterials?.join(', ') || 'Polyester'}
+- Budget Ceiling: ${preferences?.priceBudget?.max ? `$${preferences.priceBudget.max}` : '$400'}
+
+Conversation:
+${history.map(h => `${h.role}: ${h.content}`).join('\n')}
+User: "${message}"
+
+Available Catalog Pieces:
+${JSON.stringify(candidatePool.slice(0, 6).map((p: Product) => ({ id: p.id, brand: p.brand, name: p.name, price: p.price, composition: p.composition, silhouettes: p.silhouettes })))}
+
+Respond with JSON:
+{
+  "reply": "Warm, authoritative, concise styling advice discussing silhouettes, fabrics, proportions, and pairing advice. Mention 1 or 2 specific pieces by brand name.",
+  "recommendedProductIds": ["id1", "id2"],
+  "stylingTips": ["Styling tip 1 (footwear or accessories)", "Styling tip 2 (proportion or layering)"],
+  "suggestedPrompts": ["Next question 1", "Next question 2"]
+}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: { responseMimeType: 'application/json' },
+        });
+
+        if (response.text) {
+          const parsed = JSON.parse(response.text);
+          return {
+            reply: parsed.reply || 'Here are my curated styling recommendations for your look.',
+            recommendedProductIds: Array.isArray(parsed.recommendedProductIds) && parsed.recommendedProductIds.length > 0
+              ? parsed.recommendedProductIds
+              : recommendedProductIds,
+            stylingTips: parsed.stylingTips || [
+              'Balance fluid drape with structured leather accents for architectural contrast.',
+              'Stick to tonal natural hues to emphasize clean craftsmanship.'
+            ],
+            suggestedPrompts: parsed.suggestedPrompts || [
+              'Show me matching leather bags',
+              'What shoes would go best with this?'
+            ]
+          };
+        }
+      } catch (err) {
+        console.warn('Gemini stylist error:', err);
+      }
+    }
+
+    // Dynamic offline fashion stylist reasoning engine
+    let reply = `For this look, I recommend focusing on clean proportions and high-integrity natural textiles. `;
+    const tips: string[] = [];
+
+    if (q.includes('wedding') || q.includes('cocktail') || q.includes('gala') || q.includes('dress')) {
+      reply += `An architectural or bias-cut midi silhouette creates instant elegance without feeling overdone. I've pulled pieces from ${recommended.map((r: Product) => r.brand).join(' and ')} that strike the balance between understated minimalism and sophisticated draping.`;
+      tips.push('Ground fluid silk or georgette with razor-thin kitten heels or architectural square-toe footwear.');
+      tips.push('Keep jewelry sculptural—a single brushed gold cuff or drop earring lets clean necklines stand out.');
+    } else if (q.includes('trouser') || q.includes('work') || q.includes('office') || q.includes('pant')) {
+      reply += `Modern workwear is all about relaxed tailoring—wide-leg trousers with front pleats that puddle slightly over footwear, paired with fine-gauge knitwear.`;
+      tips.push('Counterbalance the voluminous wide-leg drape with a close-fitting mock-neck knit or tailored bodysuit.');
+      tips.push('Style with stacked loafers or sharp pointed flats to maintain intentional proportions.');
+    } else if (q.includes('coat') || q.includes('jacket') || q.includes('winter') || q.includes('fall')) {
+      reply += `A high-quality wool or cashmere outerwear piece transforms any basic ensemble into an intentional uniform. Look for exaggerated raglan shoulders or scarf-collar drapes.`;
+      tips.push('Opt for double-faced wool or unlined cashmere for a weightless, fluid drape that layers easily.');
+      tips.push('Pair with an unstructured slouchy nappa leather tote to complete the quiet luxury aesthetic.');
+    } else {
+      reply += `I've analyzed your preference profile and pulled these standout pieces from ${recommended.map((r: Product) => r.brand).join(', ')}. Each piece emphasizes pure natural fibers, clean silhouettes, and versatile wardrobe longevity.`;
+      tips.push('Invest in foundational natural textiles (silk, certified wool, pure linen) rather than fast-fashion blends.');
+      tips.push('Mix textural contrasts—pair fluid silk against ribbed wool knitwear for tactile depth.');
+    }
+
+    return {
+      reply,
+      recommendedProductIds: recommendedProductIds.length > 0 ? recommendedProductIds : [PRODUCTS[0].id, PRODUCTS[1].id],
+      stylingTips: tips,
+      suggestedPrompts: [
+        'How should I style this with accessories?',
+        'Show me alternatives under $250',
+        'Find shoes that pair well with this silhouette'
+      ]
+    };
   }
 }
