@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, createPartFromFunctionResponse, FunctionCallingConfigMode } from '@google/genai';
 import { pool, queryDbCandidates } from './db';
 import { getSemanticEmbedding } from './embeddings';
 import { BRANDS } from '../data/brands';
@@ -369,7 +369,7 @@ Once you have retrieved sufficient candidates, output a JSON response matching t
       const startTime = Date.now();
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents,
         config: {
           systemInstruction,
@@ -471,18 +471,56 @@ Once you have retrieved sufficient candidates, output a JSON response matching t
           });
         }
 
-        toolResponseParts.push({
-          functionResponse: {
-            name: call.name,
-            response: { output: toolOutput },
-          },
-        });
+        toolResponseParts.push(
+          createPartFromFunctionResponse(call.id || '', call.name || '', { output: toolOutput })
+        );
       }
 
       contents.push({
-        role: 'tool',
+        role: 'user',
         parts: toolResponseParts,
       });
+
+      // If we have gathered candidates and are at turn >= 2 (or have >= 12 candidates),
+      // prompt Gemini for final editorial stylist curation with tools disabled
+      if (candidatesCatalogMap.size >= 12 || turn >= 2) {
+        contents.push({
+          role: 'user',
+          parts: [
+            {
+              text: `From the candidate garments you retrieved with your tools, curate 12 to 24 pieces and provide your final answer strictly as a JSON object with this schema:
+{
+  "summary": "Editorial styling rationale summarizing the selection...",
+  "selectedProducts": [
+    {
+      "id": "exact_product_id_from_tool_results",
+      "reason": "Specific attribute-based stylist rationale (cut, fabric, silhouette, aesthetic alignment)...",
+      "matchScore": 88
+    }
+  ],
+  "suggestedRefinements": [
+    "Refinement option 1",
+    "Refinement option 2"
+  ]
+}`,
+            },
+          ],
+        });
+
+        const synthResponse = await this.ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents,
+          config: {
+            toolConfig: {
+              functionCallingConfig: { mode: FunctionCallingConfigMode.NONE },
+            },
+            temperature: 0.2,
+          },
+        });
+
+        finalModelText = synthResponse.text || '';
+        break;
+      }
     }
 
     // Parse final JSON response from Gemini
