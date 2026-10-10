@@ -76,7 +76,17 @@ export interface SearchIntent {
 
 export interface AgentTraceStep {
   id: string;
-  phase: 'understanding' | 'brand_expansion' | 'catalog_search' | 'hard_filtering' | 'aesthetic_scoring' | 'grounded_explanation';
+  phase:
+    | 'understanding'
+    | 'brand_expansion'
+    | 'catalog_search'
+    | 'hard_filtering'
+    | 'aesthetic_scoring'
+    | 'grounded_explanation'
+    | 'rag_vector_search'
+    | 'rag_sql_filter'
+    | 'rag_brand_graph'
+    | 'rag_inspection';
   title: string;
   detail: string;
   metrics?: Record<string, string | number>;

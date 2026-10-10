@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { checkDbHealth, queryDbCandidates } from './db';
 import { getSemanticEmbedding } from './embeddings';
+import { GeminiAgenticRagEngine } from './agenticRag';
 
 // Server-side Gemini client with aistudio-build telemetry header
 const ai = new GoogleGenAI({
@@ -24,6 +25,7 @@ const ai = new GoogleGenAI({
 });
 
 export class FashionSearchAgent {
+  private geminiRag = new GeminiAgenticRagEngine();
   /**
    * Step 1: Parse user query into structured search intent
    */
@@ -551,9 +553,31 @@ Return JSON:
   }
 
   /**
-   * Execute full end-to-end agentic search
+   * Execute full end-to-end agentic search:
+   * Uses autonomous Gemini Agentic RAG when API key is provided,
+   * with seamless fallback to deterministic hybrid RAG.
    */
   async executeSearch(query: string, preferences?: UserPreferences): Promise<SearchResponse> {
+    // 1. If Gemini API is available, run autonomous Agentic RAG tool loop
+    if (this.geminiRag.isAvailable()) {
+      try {
+        const agenticResponse = await this.geminiRag.executeAgenticSearch(query, preferences);
+        if (agenticResponse && agenticResponse.allProducts.length > 0) {
+          return agenticResponse;
+        }
+      } catch (err: any) {
+        console.warn('Gemini Agentic RAG notice, falling back to deterministic hybrid RAG:', err.message);
+      }
+    }
+
+    // 2. Deterministic Hybrid RAG Engine (Local / Offline Fallback)
+    return this.executeDeterministicSearch(query, preferences);
+  }
+
+  /**
+   * Deterministic Hybrid RAG pipeline
+   */
+  async executeDeterministicSearch(query: string, preferences?: UserPreferences): Promise<SearchResponse> {
     const traceSteps: AgentTraceStep[] = [];
 
     // Step 1: Parse intent

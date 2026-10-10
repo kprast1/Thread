@@ -20,6 +20,8 @@ export const AgentTraceView: React.FC<AgentTraceViewProps> = ({
 
   if (!traceSteps || traceSteps.length === 0) return null;
 
+  const isAgenticRag = traceSteps.some(s => s.phase.startsWith('rag_'));
+
   return (
     <div className="bg-white border border-neutral-200 mb-8 transition-all">
       {/* Top Banner Bar */}
@@ -33,6 +35,12 @@ export const AgentTraceView: React.FC<AgentTraceViewProps> = ({
               <span className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
                 Agentic Search Strategy
               </span>
+              {isAgenticRag && (
+                <span className="text-[11px] font-medium bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-purple-600" />
+                  Gemini Agentic RAG
+                </span>
+              )}
               <span className="text-xs text-neutral-500">·</span>
               <span className="text-xs text-emerald-800 font-medium flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
