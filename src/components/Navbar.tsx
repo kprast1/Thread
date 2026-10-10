@@ -6,6 +6,7 @@ interface NavbarProps {
   setActiveTab: (tab: 'search' | 'brands' | 'wishlist') => void;
   savedCount: number;
   onOpenPreferences: () => void;
+  dbStats?: { connected: boolean; productCount: number; brandCount: number } | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -13,6 +14,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   savedCount,
   onOpenPreferences,
+  dbStats,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#FBFBFA]/95 backdrop-blur-md border-b border-black/[0.08] transition-all">
@@ -66,8 +68,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action button */}
+        {/* Zone 3: Database status & primary action button */}
         <div className="flex items-center gap-3 shrink-0">
+          {dbStats && dbStats.connected && (
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-emerald-800 bg-emerald-50/80 border border-emerald-200/60 rounded-full"
+              title={`PostgreSQL database connected on port 5433 with ${dbStats.productCount} indexed garments.`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Postgres Live ({dbStats.productCount} pieces)</span>
+            </div>
+          )}
+
           <button
             onClick={onOpenPreferences}
             className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-900 transition-colors whitespace-nowrap shrink-0 rounded-sm shadow-xs"

@@ -61,6 +61,19 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<SearchResultProduct | null>(null);
   const [feedbacks, setFeedbacks] = useState<Record<string, FeedbackType>>({});
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [dbStats, setDbStats] = useState<{ connected: boolean; brandCount: number; productCount: number } | null>(null);
+
+  // Check database health on mount
+  useEffect(() => {
+    fetch('/api/health')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.database) {
+          setDbStats(data.database);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Save preferences changes to localStorage
   useEffect(() => {
@@ -207,6 +220,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         savedCount={savedProducts.length}
         onOpenPreferences={() => setIsOnboardingOpen(true)}
+        dbStats={dbStats}
       />
 
       {/* Main Content Area */}

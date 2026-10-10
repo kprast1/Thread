@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: thread-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-thread}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thread_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-thread}
+    volumes:
+      - thread_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thread} -d ${POSTGRES_DB:-thread}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  thread_postgres_data:
+    driver: local

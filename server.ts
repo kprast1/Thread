@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import { FashionSearchAgent } from './src/server/agent';
 import { BRANDS } from './src/data/brands';
 import { PRODUCTS } from './src/data/products';
+import { initDb, checkDbHealth, getDbBrands, getDbProducts, pool } from './src/server/db';
 
 dotenv.config();
 
@@ -19,20 +20,54 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Attempt to initialize PostgreSQL
+  try {
+    await initDb();
+    const health = await checkDbHealth();
+    console.log(`✓ PostgreSQL connected: ${health.brandCount} brands, ${health.productCount} products ready.`);
+  } catch (err: any) {
+    console.warn(`! PostgreSQL initialization notice (${err.message}). Using in-memory catalog fallback.`);
+  }
+
   const agent = new FashionSearchAgent();
 
   // API Routes
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
+  app.get('/api/health', async (_req, res) => {
+    const dbHealth = await checkDbHealth();
+    res.json({
+      status: 'ok',
+      database: {
+        connected: dbHealth.connected,
+        brandCount: dbHealth.brandCount,
+        productCount: dbHealth.productCount,
+      },
+      timestamp: Date.now(),
+    });
   });
 
-  // Get all supported brands with similarity notes
-  app.get('/api/brands', (_req, res) => {
+  // Get all supported brands with similarity notes (DB with fallback)
+  app.get('/api/brands', async (_req, res) => {
+    try {
+      const dbBrands = await getDbBrands();
+      if (dbBrands.length > 0) {
+        return res.json({ brands: dbBrands });
+      }
+    } catch (err) {
+      console.warn('Failed to load brands from DB, using fallback:', err);
+    }
     res.json({ brands: BRANDS });
   });
 
-  // Get full catalog
-  app.get('/api/products', (_req, res) => {
+  // Get full catalog (DB with fallback)
+  app.get('/api/products', async (_req, res) => {
+    try {
+      const dbProducts = await getDbProducts();
+      if (dbProducts.length > 0) {
+        return res.json({ products: dbProducts });
+      }
+    } catch (err) {
+      console.warn('Failed to load products from DB, using fallback:', err);
+    }
     res.json({ products: PRODUCTS });
   });
 
@@ -69,9 +104,16 @@ async function startServer() {
   });
 
   // Feedback endpoint
-  app.post('/api/feedback', (req, res) => {
-    const { productId, type } = req.body;
-    // Feedback recorded for session
+  app.post('/api/feedback', async (req, res) => {
+    const { productId, type, userId } = req.body;
+    try {
+      await pool.query(
+        'INSERT INTO product_feedback (user_id, product_id, feedback_type) VALUES ($1, $2, $3)',
+        [userId || 'default_user', productId, type]
+      );
+    } catch (e) {
+      // Non-blocking
+    }
     res.json({ success: true, productId, type, timestamp: Date.now() });
   });
 

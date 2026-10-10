@@ -10,6 +10,7 @@ import {
   SearchResponse,
   UserPreferences
 } from '../types';
+import { checkDbHealth, queryDbCandidates } from './db';
 
 // Server-side Gemini client with aistudio-build telemetry header
 const ai = new GoogleGenAI({
@@ -53,6 +54,7 @@ export class FashionSearchAgent {
 
     // Detect category
     if (q.includes('dress') || q.includes('slip') || q.includes('gown')) defaultIntent.category = 'dress';
+    else if (q.includes('skirt')) defaultIntent.category = 'skirt';
     else if (q.includes('trouser') || q.includes('pant') || q.includes('slacks')) defaultIntent.category = 'trousers';
     else if (q.includes('bag') || q.includes('tote') || q.includes('purse') || q.includes('crossbody')) defaultIntent.category = 'bag';
     else if (q.includes('coat') || q.includes('jacket') || q.includes('trench') || q.includes('outerwear')) defaultIntent.category = 'coat';
@@ -199,11 +201,36 @@ Return a JSON object with:
   /**
    * Step 3 & 4: Retrieve candidates & apply deterministic hard constraints
    */
-  filterCandidates(intent: SearchIntent, preferences?: UserPreferences): {
+  async filterCandidates(intent: SearchIntent, preferences?: UserPreferences): Promise<{
     validCandidates: Product[];
     totalEvaluated: number;
     trace: AgentTraceStep;
-  } {
+  }> {
+    // Attempt fast query through PostgreSQL first
+    try {
+      const dbHealth = await checkDbHealth();
+      if (dbHealth.connected && dbHealth.productCount > 0) {
+        const { candidates, totalEvaluated } = await queryDbCandidates(intent, preferences);
+        const trace: AgentTraceStep = {
+          id: 'step-3',
+          phase: 'hard_filtering',
+          title: 'Deterministic Constraint Filtering (PostgreSQL)',
+          detail: `Evaluated ${totalEvaluated} garments in PostgreSQL database. ${candidates.length} strictly satisfied hard constraints (category: ${intent.category || 'any'}, maxPrice: ${intent.maxPrice ? `$${intent.maxPrice}` : 'none'}, excluded materials: ${preferences?.excludedMaterials?.length || 0}).`,
+          metrics: {
+            totalEvaluated,
+            passedHardConstraints: candidates.length,
+            filteredOut: totalEvaluated - candidates.length,
+            engine: 'PostgreSQL GIN Index'
+          },
+          timestamp: Date.now(),
+        };
+        return { validCandidates: candidates, totalEvaluated, trace };
+      }
+    } catch (e) {
+      console.warn('PostgreSQL query error, falling back to memory catalog:', (e as any).message);
+    }
+
+    // Fallback: In-memory evaluation
     const totalEvaluated = PRODUCTS.length;
     const excludedMaterials = new Set((preferences?.excludedMaterials || []).map(m => m.toLowerCase()));
     const excludedBrands = new Set((preferences?.excludedBrands || []).map(b => b.toLowerCase()));
@@ -241,7 +268,7 @@ Return a JSON object with:
     const trace: AgentTraceStep = {
       id: 'step-3',
       phase: 'hard_filtering',
-      title: 'Deterministic Constraint Filtering',
+      title: 'Deterministic Constraint Filtering (In-Memory)',
       detail: `Evaluated ${totalEvaluated} catalog items. ${validCandidates.length} strictly satisfied hard constraints (category: ${intent.category || 'any'}, maxPrice: ${intent.maxPrice ? `$${intent.maxPrice}` : 'none'}, excluded materials: ${excludedMaterials.size}).`,
       metrics: {
         totalEvaluated,
@@ -517,7 +544,7 @@ Return JSON:
     traceSteps.push(trace2);
 
     // Step 3 & 4: Hard constraint filtering
-    const { validCandidates, totalEvaluated, trace: trace3 } = this.filterCandidates(intent, preferences);
+    const { validCandidates, totalEvaluated, trace: trace3 } = await this.filterCandidates(intent, preferences);
     traceSteps.push(trace3);
 
     // Step 5: Ranking & aesthetic affinity scoring
