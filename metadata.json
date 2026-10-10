@@ -1,0 +1,6 @@
+{
+  "name": "THREAD — Personalized Fashion Search Agent",
+  "description": "Agentic AI shopping discovery across favorite and emerging fashion brands with natural language queries, aesthetic matching, and conversational refinements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
