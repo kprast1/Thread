@@ -1,5 +1,6 @@
-import { pool, upsertDbBrand, upsertDbProduct } from '../src/server/db';
+import { pool, upsertDbBrand, upsertDbProduct, upsertDbBrandAffinities } from '../src/server/db';
 import { Product, Brand } from '../src/types';
+import { BRANDS } from '../src/data/brands';
 
 interface ShopifyProduct {
   id: number;
@@ -27,11 +28,8 @@ interface TargetStore {
   brandId: string;
   brandName: string;
   domain: string;
+  fetchLimit: number;
   defaultAesthetic: string;
-  tier: 'accessible' | 'contemporary' | 'accessible_luxury' | 'luxury';
-  priceRange: string;
-  origin: string;
-  similarBrandIds: string[];
 }
 
 const TARGET_STORES: TargetStore[] = [
@@ -39,31 +37,71 @@ const TARGET_STORES: TargetStore[] = [
     brandId: 'source_unknown',
     brandName: 'Source Unknown',
     domain: 'thesourceunknown.com',
+    fetchLimit: 120,
     defaultAesthetic: 'Architectural minimalism, structured wrap silhouettes, sculptural tailoring, and modern outerwear.',
-    tier: 'contemporary',
-    priceRange: '$120 – $420',
-    origin: 'New York, USA',
-    similarBrandIds: ['cos', 'toteme', 'tibi', 'massimo_dutti'],
   },
   {
     brandId: 'dissh',
     brandName: 'Dissh',
     domain: 'dissh.com',
+    fetchLimit: 130,
     defaultAesthetic: 'Effortless Australian neutrals, refined linen tailoring, ribbed knit dresses, and sun-drenched minimalism.',
-    tier: 'contemporary',
-    priceRange: '$90 – $280',
-    origin: 'Brisbane, Australia',
-    similarBrandIds: ['reformation', 'sezane', 'massimo_dutti', 'and_other_stories'],
   },
   {
     brandId: 'staud',
     brandName: 'Staud',
     domain: 'staud.clothing',
+    fetchLimit: 130,
     defaultAesthetic: 'Modern vintage romanticism, sculptural shoulder bags, vibrant tailoring, and playful celebratory silhouettes.',
-    tier: 'contemporary',
-    priceRange: '$195 – $595',
-    origin: 'Los Angeles, USA',
-    similarBrandIds: ['reformation', 'ganni', 'rouje', 'toteme'],
+  },
+  {
+    brandId: 'paloma_wool',
+    brandName: 'Paloma Wool',
+    domain: 'palomawool.com',
+    fetchLimit: 140,
+    defaultAesthetic: 'Barcelona artistic cool, tactile experimental knitwear, trompe-l’œil prints, and expressive asymmetry.',
+  },
+  {
+    brandId: 'anine_bing',
+    brandName: 'Anine Bing',
+    domain: 'aninebing.com',
+    fetchLimit: 130,
+    defaultAesthetic: 'Scandinavian simplicity fused with American rock-n-roll edge: sharp double-breasted blazers, sleek leather boots, and effortless silk slips.',
+  },
+  {
+    brandId: 'cult_gaia',
+    brandName: 'Cult Gaia',
+    domain: 'cultgaia.com',
+    fetchLimit: 130,
+    defaultAesthetic: 'Sculptural objet d’art dressing, architectural footwear, cut-out evening gowns, and memorable occasionwear.',
+  },
+  {
+    brandId: 'doen',
+    brandName: 'Dôen',
+    domain: 'shopdoen.com',
+    fetchLimit: 120,
+    defaultAesthetic: 'California nostalgia, ethereal heirloom silks, hand-embroidered cottons, and romantic vintage silhouettes.',
+  },
+  {
+    brandId: 'sir_the_label',
+    brandName: 'SIR the Label',
+    domain: 'sirthelabel.com',
+    fetchLimit: 120,
+    defaultAesthetic: 'Minimalist Australian resort tailoring, clean backless slip dresses, crisp linen separates, and understated summer luxury.',
+  },
+  {
+    brandId: 'matteau',
+    brandName: 'Matteau',
+    domain: 'matteau-store.com',
+    fetchLimit: 100,
+    defaultAesthetic: 'Discreet, timeless Australian resortwear: fluid silk crepe column dresses, organic cotton poplin, and sun-soaked minimalism.',
+  },
+  {
+    brandId: 'faithfull',
+    brandName: 'Faithfull the Brand',
+    domain: 'faithfullthebrand.com',
+    fetchLimit: 120,
+    defaultAesthetic: 'Sun-drenched getaway style, vintage-inspired hand-printed linens, breezy sundresses, and romantic vacation flair.',
   },
 ];
 
@@ -82,15 +120,55 @@ function stripHtml(html: string): string {
 function extractCategory(title: string, productType: string, tags: string[]): Product['category'] {
   const combined = `${title} ${productType} ${tags.join(' ')}`.toLowerCase();
 
-  if (combined.includes('dress') || combined.includes('slip') || combined.includes('gown') || combined.includes('maxi dress') || combined.includes('midi dress') || combined.includes('mini dress')) return 'dress';
-  if (combined.includes('skirt')) return 'skirt';
-  if (combined.includes('trouser') || combined.includes('pant') || combined.includes('jean') || combined.includes('slack')) return 'trousers';
-  if (combined.includes('coat') || combined.includes('jacket') || combined.includes('trench') || combined.includes('blazer') || combined.includes('outerwear')) return 'coat';
-  if (combined.includes('bag') || combined.includes('tote') || combined.includes('purse') || combined.includes('crossbody') || combined.includes('clutch')) return 'bag';
-  if (combined.includes('boot') || combined.includes('shoe') || combined.includes('heel') || combined.includes('loafer') || combined.includes('mule') || combined.includes('sandal')) return 'shoes';
-  if (combined.includes('sweater') || combined.includes('cardigan') || combined.includes('knit') || combined.includes('pullover')) return 'knitwear';
-  if (combined.includes('top') || combined.includes('shirt') || combined.includes('blouse') || combined.includes('tee') || combined.includes('tank')) return 'top';
+  // 1. Footwear & Shoes
+  if (combined.includes('boot') || combined.includes('shoe') || combined.includes('heel') ||
+      combined.includes('sandal') || combined.includes('mule') || combined.includes('loafer') ||
+      combined.includes('slide') || combined.includes('wedge') || combined.includes('footwear')) {
+    return 'shoes';
+  }
 
+  // 2. Bags & Leather Goods
+  if (combined.includes('bag') || combined.includes('tote') || combined.includes('purse') ||
+      combined.includes('crossbody') || combined.includes('clutch') || combined.includes('shoulder bag') ||
+      combined.includes('satchel') || combined.includes('hobo')) {
+    return 'bag';
+  }
+
+  // 3. Coats & Outerwear
+  if (combined.includes('coat') || combined.includes('jacket') || combined.includes('trench') ||
+      combined.includes('blazer') || combined.includes('parka') || combined.includes('bomber') ||
+      combined.includes('outerwear') || combined.includes('anorak')) {
+    return 'coat';
+  }
+
+  // 4. Knitwear
+  if (combined.includes('sweater') || combined.includes('cardigan') || combined.includes('knit') ||
+      combined.includes('pullover') || combined.includes('jumper') || combined.includes('turtleneck') ||
+      combined.includes('crewneck') || combined.includes('cashmere sweater')) {
+    return 'knitwear';
+  }
+
+  // 5. Skirts
+  if (combined.includes('skirt') || combined.includes('slip skirt') || combined.includes('mini skirt') ||
+      combined.includes('maxi skirt') || combined.includes('midi skirt')) {
+    return 'skirt';
+  }
+
+  // 6. Trousers & Pants
+  if (combined.includes('trouser') || combined.includes('pant') || combined.includes('jean') ||
+      combined.includes('denim') || combined.includes('slack') || combined.includes('wide-leg pant') ||
+      combined.includes('culotte')) {
+    return 'trousers';
+  }
+
+  // 7. Dresses
+  if (combined.includes('dress') || combined.includes('slip') || combined.includes('gown') ||
+      combined.includes('maxi') || combined.includes('midi') || combined.includes('kaftan') ||
+      combined.includes('sundress') || combined.includes('jumpsuit') || combined.includes('romper')) {
+    return 'dress';
+  }
+
+  // 8. Tops
   return 'top';
 }
 
@@ -99,7 +177,8 @@ function extractColors(text: string): string[] {
   const colorKeywords = [
     'black', 'white', 'ivory', 'cream', 'ecru', 'beige', 'camel', 'taupe', 'brown',
     'espresso', 'chocolate', 'navy', 'blue', 'charcoal', 'grey', 'gray', 'rust',
-    'olive', 'khaki', 'sage', 'green', 'burgundy', 'wine', 'red', 'sand', 'tan'
+    'olive', 'khaki', 'sage', 'green', 'burgundy', 'wine', 'red', 'sand', 'tan',
+    'terracotta', 'caramel', 'butter', 'lemon', 'lilac', 'lavender', 'blush', 'pink'
   ];
 
   const lower = text.toLowerCase();
@@ -118,7 +197,8 @@ function extractMaterials(text: string): string[] {
   const materialKeywords = [
     'silk', 'linen', 'wool', 'cashmere', 'cotton', 'viscose', 'crepe', 'leather',
     'suede', 'satin', 'triacetate', 'lyocell', 'tencel', 'modal', 'poplin',
-    'chiffon', 'georgette', 'mohair', 'alpaca', 'polyester', 'nylon', 'spandex'
+    'chiffon', 'georgette', 'mohair', 'alpaca', 'raffia', 'organza', 'corduroy',
+    'velvet', 'gabardine', 'denim', 'canvas', 'polyester', 'nylon', 'spandex'
   ];
 
   const lower = text.toLowerCase();
@@ -138,7 +218,9 @@ function extractSilhouettes(text: string, category: string): string[] {
     'asymmetric', 'bias-cut', 'pleated', 'wide-leg', 'sculptural', 'oversized',
     'tailored', 'relaxed', 'slip', 'wrap', 'column', 'midi', 'maxi', 'mini',
     'high-waist', 'straight-leg', 'cropped', 'double-breasted', 'single-breasted',
-    'scarf-collar', 'one-shoulder', 'sleeveless', 'low-heel', 'kitten-heel'
+    'scarf-collar', 'scarf-lapel', 'one-shoulder', 'sleeveless', 'backless',
+    'cutout', 'halter', 'low-heel', 'kitten-heel', 'pointed-toe', 'square-toe',
+    'structured', 'draped', 'gathered', 'fluted'
   ];
 
   const lower = text.toLowerCase();
@@ -159,7 +241,7 @@ function extractOccasions(text: string, category: string): string[] {
   const occasions: string[] = [];
   const occasionKeywords = [
     'wedding', 'cocktail', 'evening', 'dinner', 'work', 'office', 'vacation',
-    'resort', 'everyday', 'casual', 'celebration', 'gala'
+    'resort', 'everyday', 'casual', 'celebration', 'gala', 'date night'
   ];
 
   const lower = text.toLowerCase();
@@ -174,15 +256,16 @@ function extractOccasions(text: string, category: string): string[] {
     else if (category === 'trousers') occasions.push('work', 'office', 'everyday');
     else if (category === 'coat') occasions.push('everyday', 'work', 'evening');
     else if (category === 'bag') occasions.push('everyday', 'evening', 'work');
+    else if (category === 'shoes') occasions.push('evening', 'everyday', 'dinner');
     else occasions.push('everyday');
   }
 
   return Array.from(new Set(occasions));
 }
 
-async function fetchStoreCatalog(store: TargetStore, limit = 40): Promise<ShopifyProduct[]> {
-  const url = `https://${store.domain}/products.json?limit=${limit}`;
-  console.log(`\nFetching live inventory from ${store.brandName} (${url})...`);
+async function fetchStoreCatalog(store: TargetStore): Promise<ShopifyProduct[]> {
+  const url = `https://${store.domain}/products.json?limit=${store.fetchLimit}`;
+  console.log(`\nFetching up to ${store.fetchLimit} products from ${store.brandName} (${store.domain})...`);
 
   try {
     const res = await fetch(url, {
@@ -205,39 +288,50 @@ async function fetchStoreCatalog(store: TargetStore, limit = 40): Promise<Shopif
   }
 }
 
-async function runIngestion() {
-  console.log('====================================================');
-  console.log('   THREAD Live Brand Catalog Ingestion Pipeline     ');
-  console.log('====================================================');
+async function runDeepIngestion() {
+  console.log('================================================================');
+  console.log('       THREAD Deep Brand Catalog Ingestion Pipeline             ');
+  console.log('================================================================');
+
+  // 1. Seed or update all 24 curated brands and their affinity graph
+  console.log(`\n1. Synchronizing ${BRANDS.length} curated fashion houses & affinity network in PostgreSQL...`);
+  for (const brand of BRANDS) {
+    await upsertDbBrand(brand);
+  }
+  for (const brand of BRANDS) {
+    await upsertDbBrandAffinities(brand);
+  }
+  console.log(`✓ All ${BRANDS.length} brands & affinity edges synchronized.`);
 
   let totalIngested = 0;
+  const brandStats: Record<string, number> = {};
 
+  // 2. Ingest products across all target contemporary stores
   for (const store of TARGET_STORES) {
-    // 1. Ensure brand exists in database
-    const brandObj: Brand = {
-      id: store.brandId,
-      name: store.brandName,
-      tier: store.tier,
-      priceRange: store.priceRange,
-      aestheticSummary: store.defaultAesthetic,
-      aestheticKeywords: ['Contemporary', 'Sculptural', 'Refined', 'Tailored', 'Minimalist'],
-      origin: store.origin,
-      website: `https://${store.domain}`,
-      similarBrandIds: store.similarBrandIds,
-    };
-    await upsertDbBrand(brandObj);
-
-    // 2. Fetch live products from store
-    const shopifyProducts = await fetchStoreCatalog(store, 35);
-    console.log(`Fetched ${shopifyProducts.length} raw products from ${store.brandName}. Normalizing and ingesting...`);
-
+    const shopifyProducts = await fetchStoreCatalog(store);
     let storeIngested = 0;
+
     for (const sp of shopifyProducts) {
+      // Filter out products without images
       if (!sp.images || sp.images.length === 0) continue;
+
+      // Filter out gift cards, lookbook looks, test items
+      const titleLower = sp.title.toLowerCase();
+      if (titleLower.includes('gift card') || titleLower.includes('e-gift') || titleLower.includes('digital voucher')) continue;
+      if (titleLower.startsWith('aw') && titleLower.includes('look')) continue;
+
+      // Extract price
+      const primaryVariant = sp.variants && sp.variants.length > 0 ? sp.variants[0] : null;
+      if (!primaryVariant) continue;
+
+      const priceNum = parseFloat(primaryVariant.price);
+      if (isNaN(priceNum) || priceNum <= 10) continue; // Skip zero/test pricing
+
+      const origPriceNum = primaryVariant?.compare_at_price ? parseFloat(primaryVariant.compare_at_price) : undefined;
 
       const rawDescription = stripHtml(sp.body_html || '');
       const rawTags = Array.isArray(sp.tags) ? sp.tags : (typeof sp.tags === 'string' ? (sp.tags as string).split(',').map(t => t.trim()) : []);
-      const searchableText = `${sp.title} ${rawTags.join(' ')} ${rawDescription}`;
+      const searchableText = `${sp.title} ${sp.product_type} ${rawTags.join(' ')} ${rawDescription}`;
 
       const category = extractCategory(sp.title, sp.product_type || '', rawTags);
       const colors = extractColors(searchableText);
@@ -245,21 +339,19 @@ async function runIngestion() {
       const silhouettes = extractSilhouettes(searchableText, category);
       const occasion = extractOccasions(searchableText, category);
 
-      // Determine price
-      const primaryVariant = sp.variants && sp.variants.length > 0 ? sp.variants[0] : null;
-      const priceNum = primaryVariant ? parseFloat(primaryVariant.price) : 200;
-      const origPriceNum = primaryVariant?.compare_at_price ? parseFloat(primaryVariant.compare_at_price) : undefined;
+      // Clean image URLs (ensuring https:)
+      let imageUrl = sp.images[0].src;
+      if (imageUrl.startsWith('//')) imageUrl = 'https:' + imageUrl;
 
-      // Image URL
-      const imageUrl = sp.images[0].src;
-      const fallbackImageUrl = sp.images[1] ? sp.images[1].src : imageUrl;
+      let fallbackImageUrl = sp.images[1] ? sp.images[1].src : imageUrl;
+      if (fallbackImageUrl.startsWith('//')) fallbackImageUrl = 'https:' + fallbackImageUrl;
 
       // Sizes
       const sizes = sp.variants
         ? sp.variants.map(v => v.title).filter(t => t && t !== 'Default Title' && !t.includes('/'))
         : ['S', 'M', 'L'];
 
-      // Stock
+      // In stock
       const inStock = sp.variants ? sp.variants.some(v => v.available) : true;
 
       const productSlug = `${store.brandId}-${sp.handle}`;
@@ -269,7 +361,7 @@ async function runIngestion() {
         brand: store.brandName,
         brandId: store.brandId,
         name: sp.title,
-        price: isNaN(priceNum) ? 195 : priceNum,
+        price: priceNum,
         originalPrice: origPriceNum && !isNaN(origPriceNum) ? origPriceNum : undefined,
         currency: 'USD',
         category,
@@ -292,6 +384,7 @@ async function runIngestion() {
       await upsertDbProduct(product, {
         shopifyId: sp.id,
         handle: sp.handle,
+        vendor: sp.vendor,
         publishedAt: sp.created_at,
       });
 
@@ -299,17 +392,37 @@ async function runIngestion() {
       totalIngested++;
     }
 
-    console.log(`✓ Successfully ingested and normalized ${storeIngested} garments from ${store.brandName}.`);
+    brandStats[store.brandName] = storeIngested;
+    console.log(`  ✓ ${store.brandName}: Ingested ${storeIngested} real garments.`);
   }
 
-  console.log('\n====================================================');
-  console.log(`Ingestion Finished! Total Live Garments Ingested: ${totalIngested}`);
-  console.log('====================================================');
+  // Count total products in database
+  const countRes = await pool.query('SELECT COUNT(*)::int as count FROM products');
+  const totalInDb = countRes.rows[0]?.count || 0;
+
+  console.log('\n================================================================');
+  console.log(`   Deep Catalog Ingestion Finished!                             `);
+  console.log(`   New/Updated Ingested Garments: ${totalIngested}               `);
+  console.log(`   Total Products Now In PostgreSQL: ${totalInDb}                `);
+  console.log('================================================================');
+
+  console.log('\nBreakdown by Brand:');
+  console.table(brandStats);
+
+  // Breakdown by Category
+  const catRes = await pool.query(`
+    SELECT category, count(*)::int as count 
+    FROM products 
+    GROUP BY category 
+    ORDER BY count DESC;
+  `);
+  console.log('\nBreakdown by Category in PostgreSQL:');
+  console.table(catRes.rows);
 
   await pool.end();
 }
 
-runIngestion().catch(err => {
-  console.error('Ingestion failed:', err);
+runDeepIngestion().catch(err => {
+  console.error('Deep ingestion failed:', err);
   process.exit(1);
 });

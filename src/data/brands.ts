@@ -250,5 +250,108 @@ export const BRANDS: Brand[] = [
     similarityNotes: {
       toteme: 'Supplies high-tactility luxury pieces that seamlessly integrate with a minimalist wardrobe.'
     }
+  },
+  {
+    id: 'paloma_wool',
+    name: 'Paloma Wool',
+    tier: 'contemporary',
+    priceRange: '$120 – $360',
+    aestheticSummary: 'Barcelona artistic cool, tactile experimental knitwear, trompe-l’œil prints, and expressive asymmetry.',
+    aestheticKeywords: ['Artistic Knitwear', 'Barcelona Cool', 'Tactile Expression', 'Asymmetric', 'Cult Contemporary'],
+    origin: 'Barcelona, Spain',
+    website: 'https://palomawool.com',
+    similarBrandIds: ['ganni', 'source_unknown', 'tibi'],
+    similarityNotes: {
+      ganni: 'Playful European perspective with an indie art-school edge and tactile knitwear.',
+      source_unknown: 'Shared love of unconventional cuts, curved lines, and artistic silhouettes.'
+    }
+  },
+  {
+    id: 'anine_bing',
+    name: 'Anine Bing',
+    tier: 'accessible_luxury',
+    priceRange: '$190 – $650',
+    aestheticSummary: 'Scandinavian simplicity fused with American rock-n-roll edge: sharp double-breasted blazers, sleek leather boots, and effortless silk slips.',
+    aestheticKeywords: ['Tailored Blazers', 'Scandinavian Edge', 'Elevated Rock-Chic', 'Leather Footwear', 'Sharp Shoulders'],
+    origin: 'Los Angeles, USA',
+    website: 'https://aninebing.com',
+    similarBrandIds: ['toteme', 'khaite', 'massimo_dutti', 'cos'],
+    similarityNotes: {
+      toteme: 'Equally dedicated to crisp, sharp blazers and timeless Scandinavian minimalism with a slightly rockier LA attitude.',
+      khaite: 'Captures the downtown edge and high-attitude tailoring at a contemporary accessible-luxury price.'
+    }
+  },
+  {
+    id: 'cult_gaia',
+    name: 'Cult Gaia',
+    tier: 'accessible_luxury',
+    priceRange: '$220 – $890',
+    aestheticSummary: 'Sculptural objet d’art dressing, architectural footwear, cut-out evening gowns, and memorable occasionwear designed to stand out.',
+    aestheticKeywords: ['Architectural Heels', 'Sculptural Bags', 'Cutout Eveningwear', 'Statement Pieces', 'Heirloom Gala'],
+    origin: 'Los Angeles, USA',
+    website: 'https://cultgaia.com',
+    similarBrandIds: ['staud', 'khaite', 'reformation'],
+    similarityNotes: {
+      staud: 'Fellow LA design pioneer specializing in showstopping sculptural accessories and festive occasion silhouettes.',
+      reformation: 'Offers elevated evening and cocktail drama when you want more architectural structure and artistic flair.'
+    }
+  },
+  {
+    id: 'doen',
+    name: 'Dôen',
+    tier: 'contemporary',
+    priceRange: '$180 – $520',
+    aestheticSummary: 'California nostalgia, ethereal heirloom silks, hand-embroidered cottons, and romantic vintage silhouettes honoring femininity.',
+    aestheticKeywords: ['Vintage Romanticism', 'Heirloom Silks', 'Hand Embroidery', 'Poetic Florals', 'Breezy Nostalgia'],
+    origin: 'California, USA',
+    website: 'https://shopdoen.com',
+    similarBrandIds: ['sezane', 'rouje', 'reformation'],
+    similarityNotes: {
+      sezane: 'Direct kinship in vintage romanticism, heirloom fabrics, and poetic European-Californian silhouettes.',
+      rouje: 'A softer, more pastoral American coastal answer to Parisian vintage femininity.'
+    }
+  },
+  {
+    id: 'sir_the_label',
+    name: 'SIR the Label',
+    tier: 'contemporary',
+    priceRange: '$190 – $580',
+    aestheticSummary: 'Minimalist Australian resort tailoring, clean backless slip dresses, crisp linen separates, and understated summer luxury.',
+    aestheticKeywords: ['Minimalist Resort', 'Crisp Linen', 'Backless Slips', 'Sydney Chic', 'Neutral Tailoring'],
+    origin: 'Sydney, Australia',
+    website: 'https://sirthelabel.com',
+    similarBrandIds: ['dissh', 'reformation', 'massimo_dutti'],
+    similarityNotes: {
+      dissh: 'Elevated Australian sister brand with sharper tailoring, luxury silks, and refined evening resortwear.',
+      reformation: 'Sophisticated neutral alternative for clean occasionwear, weddings, and slip silhouettes.'
+    }
+  },
+  {
+    id: 'matteau',
+    name: 'Matteau',
+    tier: 'accessible_luxury',
+    priceRange: '$220 – $690',
+    aestheticSummary: 'Discreet, timeless Australian resortwear: fluid silk crepe column dresses, organic cotton poplin, and sun-soaked minimalism.',
+    aestheticKeywords: ['Understated Resort', 'Silk Columns', 'Organic Poplin', 'Quiet Luxury', 'Subtle Tailoring'],
+    origin: 'Sydney, Australia',
+    website: 'https://matteau-store.com',
+    similarBrandIds: ['toteme', 'dissh', 'polene'],
+    similarityNotes: {
+      toteme: 'The Southern Hemisphere equivalent of Toteme quiet luxury, distilled into vacation columns and clean tailoring.'
+    }
+  },
+  {
+    id: 'faithfull',
+    name: 'Faithfull the Brand',
+    tier: 'contemporary',
+    priceRange: '$140 – $340',
+    aestheticSummary: 'Sun-drenched getaway style, vintage-inspired hand-printed linens, breezy sundresses, and romantic vacation flair.',
+    aestheticKeywords: ['Vacation Linens', 'Hand-Printed Florals', 'Breezy Midi Dresses', 'Resort Chic', 'Effortless Summer'],
+    origin: 'Bali / Sydney',
+    website: 'https://faithfullthebrand.com',
+    similarBrandIds: ['dissh', 'sezane', 'reformation'],
+    similarityNotes: {
+      reformation: 'Effortless warm-weather midi dresses and printed linens at an approachable contemporary price point.'
+    }
   }
 ];
